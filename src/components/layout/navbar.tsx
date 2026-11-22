@@ -103,12 +103,12 @@ export function Navbar() {
                   Sign In
                 </Button>
               </Link>
-              <a href="/#report-cta">
+              <Link href="/#report-cta">
                 <Button variant="primary" size="sm" className="gap-1.5 cursor-pointer font-medium shadow-xs">
                   <PlusCircle className="h-4 w-4" />
                   Report an Issue
                 </Button>
-              </a>
+              </Link>
             </>
           )}
         </div>
@@ -185,12 +185,12 @@ export function Navbar() {
                     Sign In
                   </Button>
                 </Link>
-                <a href="/#report-cta" onClick={closeMobileMenu} className="w-full">
+                <Link href="/#report-cta" onClick={closeMobileMenu} className="w-full">
                   <Button variant="primary" size="md" fullWidth className="gap-1.5 cursor-pointer font-medium">
                     <PlusCircle className="h-4 w-4" />
                     Report an Issue
                   </Button>
-                </a>
+                </Link>
               </>
             )}
           </div>
