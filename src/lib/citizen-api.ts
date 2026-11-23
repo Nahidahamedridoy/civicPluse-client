@@ -56,6 +56,14 @@ export interface CitizenDashboardData {
   recentReports: CitizenIssue[];
 }
 
+export interface DepartmentItem {
+  _id: string;
+  name: string;
+  code: string;
+  description?: string;
+  isActive: boolean;
+}
+
 export interface MyReportsResponse {
   issues: CitizenIssue[];
   count: number;
@@ -178,15 +186,17 @@ export async function fetchMyReports(
   filters?: {
     status?: string;
     priority?: string;
+    category?: string;
     search?: string;
     page?: number;
     limit?: number;
   }
 ): Promise<MyReportsResponse> {
   const params = new URLSearchParams();
-  if (filters?.status) params.set("status", filters.status);
-  if (filters?.priority) params.set("priority", filters.priority);
-  if (filters?.search) params.set("search", filters.search);
+  if (filters?.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters?.priority && filters.priority !== "all") params.set("priority", filters.priority);
+  if (filters?.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters?.search?.trim()) params.set("search", filters.search.trim());
   if (filters?.page) params.set("page", String(filters.page));
   if (filters?.limit) params.set("limit", String(filters.limit));
 
@@ -209,6 +219,21 @@ export async function fetchMyReports(
     page: res.page || 1,
     totalPages: res.totalPages || 1,
   };
+}
+
+/**
+ * Fetches single issue details by ID.
+ * Endpoint: GET /api/issues/:id
+ */
+export async function fetchIssueById(token: string, id: string): Promise<CitizenIssue> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    data: {
+      issue: CitizenIssue;
+    };
+  }>(`/issues/${id}`, token);
+
+  return res.data.issue;
 }
 
 /**
@@ -243,4 +268,84 @@ export async function fetchUnreadNotificationCount(token: string): Promise<numbe
   } catch {
     return 0;
   }
+}
+
+/**
+ * Fetches active departments.
+ * Endpoint: GET /api/departments
+ */
+export async function fetchDepartments(token: string): Promise<DepartmentItem[]> {
+  try {
+    const res = await authorizedFetch<{
+      success: boolean;
+      data: {
+        departments: DepartmentItem[];
+      };
+    }>("/departments?limit=50", token);
+
+    return res.data?.departments || [];
+  } catch (error) {
+    console.error("Failed to fetch departments:", error);
+    return [];
+  }
+}
+
+/**
+ * Submits a new issue report using multipart/form-data.
+ * Endpoint: POST /api/issues
+ */
+export async function submitIssueReport(
+  token: string,
+  formData: FormData
+): Promise<CitizenIssue> {
+  const baseUrl = getApiBaseUrl();
+  const url = `${baseUrl}/issues`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        // Do NOT set Content-Type header so browser computes correct multipart boundary
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+  } catch {
+    throw new Error(
+      "Unable to connect to the CivicPulse server. Please ensure the backend is running at http://localhost:5000."
+    );
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    const errorJson = await response.json().catch(() => ({}));
+    throw new Error(
+      errorJson.message || "Session expired or unauthorized. Please sign in again."
+    );
+  }
+
+  let json: {
+    success?: boolean;
+    message?: string;
+    error?: string;
+    data?: {
+      issue: CitizenIssue;
+    };
+  };
+
+  try {
+    json = await response.json();
+  } catch {
+    throw new Error("Invalid response format received from CivicPulse server.");
+  }
+
+  if (!response.ok || json.success === false) {
+    throw new Error(json.message || json.error || "Failed to submit issue report.");
+  }
+
+  if (!json.data?.issue) {
+    throw new Error("Issue report was accepted but server did not return issue details.");
+  }
+
+  return json.data.issue;
 }
