@@ -105,6 +105,52 @@ export interface DuplicateCheckResponse {
   };
 }
 
+export interface ActivityLogActor {
+  _id: string;
+  name: string;
+  role: string;
+  avatar?: string | null;
+}
+
+export interface IssueActivityLog {
+  _id: string;
+  issue: string;
+  performedBy: ActivityLogActor;
+  action: string;
+  description: string;
+  previousStatus?: string | null;
+  newStatus?: string | null;
+  createdAt: string;
+}
+
+export interface CommentUser {
+  _id: string;
+  name: string;
+  role: string;
+  avatar?: string | null;
+}
+
+export interface IssueComment {
+  _id: string;
+  issue: string;
+  user: CommentUser;
+  message: string;
+  createdAt: string;
+}
+
+export interface IssueFeedback {
+  _id: string;
+  issue: string;
+  citizen: {
+    _id: string;
+    name: string;
+    avatar?: string | null;
+  };
+  rating: number;
+  comment?: string;
+  createdAt: string;
+}
+
 /**
  * Maps raw backend status values to user-facing labels and HeroUI color tokens.
  */
@@ -424,5 +470,112 @@ export async function checkDuplicateIssues(
     console.warn("CivicPulse duplicate check non-blocking error:", error);
     return [];
   }
+}
+
+/**
+ * Fetches activity logs for a specific issue.
+ * Endpoint: GET /api/issues/:id/activity
+ */
+export async function fetchIssueActivity(
+  token: string,
+  issueId: string
+): Promise<IssueActivityLog[]> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    count: number;
+    data: {
+      logs: IssueActivityLog[];
+    };
+  }>(`/issues/${issueId}/activity?limit=50`, token);
+
+  return res.data?.logs || [];
+}
+
+/**
+ * Fetches comments for a specific issue.
+ * Endpoint: GET /api/issues/:id/comments
+ */
+export async function fetchIssueComments(
+  token: string,
+  issueId: string
+): Promise<IssueComment[]> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    count: number;
+    data: {
+      comments: IssueComment[];
+    };
+  }>(`/issues/${issueId}/comments?limit=100`, token);
+
+  return res.data?.comments || [];
+}
+
+/**
+ * Submits a new comment on an issue.
+ * Endpoint: POST /api/issues/:id/comments
+ */
+export async function postIssueComment(
+  token: string,
+  issueId: string,
+  message: string
+): Promise<IssueComment> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: {
+      comment: IssueComment;
+    };
+  }>(`/issues/${issueId}/comments`, token, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+
+  return res.data.comment;
+}
+
+/**
+ * Fetches existing citizen feedback for an issue.
+ * Endpoint: GET /api/issues/:id/feedback
+ */
+export async function fetchIssueFeedback(
+  token: string,
+  issueId: string
+): Promise<IssueFeedback | null> {
+  try {
+    const res = await authorizedFetch<{
+      success: boolean;
+      data: {
+        feedback: IssueFeedback;
+      };
+    }>(`/issues/${issueId}/feedback`, token);
+
+    return res.data?.feedback || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Submits citizen feedback for a resolved or closed issue.
+ * Endpoint: POST /api/issues/:id/feedback
+ */
+export async function submitIssueFeedback(
+  token: string,
+  issueId: string,
+  rating: number,
+  comment?: string
+): Promise<IssueFeedback> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: {
+      feedback: IssueFeedback;
+    };
+  }>(`/issues/${issueId}/feedback`, token, {
+    method: "POST",
+    body: JSON.stringify({ rating, comment: comment || "" }),
+  });
+
+  return res.data.feedback;
 }
 
