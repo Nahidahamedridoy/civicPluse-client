@@ -39,7 +39,6 @@ import {
 } from "@/lib/citizen-api";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { IssueDetailsModal } from "@/components/citizen/issue-details-modal";
-import { ReportIssueModal } from "@/components/citizen/report-issue-modal";
 
 type NavTab = "overview" | "reports" | "profile";
 
@@ -53,7 +52,6 @@ export default function CitizenDashboardPage() {
 
   // Modals state
   const [selectedIssue, setSelectedIssue] = useState<CitizenIssue | null>(null);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   // Data & loading states
   const [dashboardData, setDashboardData] = useState<CitizenDashboardData | null>(null);
@@ -300,16 +298,14 @@ export default function CitizenDashboardPage() {
               )}
             </button>
 
-            <button
-              onClick={() => {
-                setReportModalOpen(true);
-                setMobileSidebarOpen(false);
-              }}
+            <Link
+              href="/citizen/report-issue"
+              onClick={() => setMobileSidebarOpen(false)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-accent hover:bg-accent/10 transition-colors cursor-pointer"
             >
               <PlusCircle className="h-4 w-4 shrink-0" />
               <span>Report an Issue</span>
-            </button>
+            </Link>
 
             <button
               onClick={() => {
@@ -478,7 +474,7 @@ export default function CitizenDashboardPage() {
                   <Button
                     variant="primary"
                     size="md"
-                    onPress={() => setReportModalOpen(true)}
+                    onPress={() => router.push("/citizen/report-issue")}
                     className="gap-2 font-semibold shadow-xs cursor-pointer"
                   >
                     <PlusCircle className="h-4 w-4" />
@@ -582,7 +578,7 @@ export default function CitizenDashboardPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card
-                    onClick={() => setReportModalOpen(true)}
+                    onClick={() => router.push("/citizen/report-issue")}
                     className="border border-border bg-surface hover:border-accent/50 p-5 rounded-2xl shadow-xs cursor-pointer transition-all group"
                   >
                     <div className="flex items-center gap-3">
@@ -692,7 +688,7 @@ export default function CitizenDashboardPage() {
                     <Button
                       variant="primary"
                       size="sm"
-                      onPress={() => setReportModalOpen(true)}
+                      onPress={() => router.push("/citizen/report-issue")}
                       className="cursor-pointer gap-1.5"
                     >
                       <PlusCircle className="h-4 w-4" /> Log Your First Report
@@ -793,7 +789,7 @@ export default function CitizenDashboardPage() {
                 <Button
                   variant="primary"
                   size="sm"
-                  onPress={() => setReportModalOpen(true)}
+                  onPress={() => router.push("/citizen/report-issue")}
                   className="gap-1.5 cursor-pointer font-medium self-start sm:self-auto"
                 >
                   <PlusCircle className="h-4 w-4" /> Report New Issue
@@ -1034,16 +1030,6 @@ export default function CitizenDashboardPage() {
       <IssueDetailsModal
         issue={selectedIssue}
         onClose={() => setSelectedIssue(null)}
-      />
-
-      {/* Report Issue Guidance Modal */}
-      <ReportIssueModal
-        isOpen={reportModalOpen}
-        onClose={() => setReportModalOpen(false)}
-        onViewReports={() => {
-          setActiveTab("reports");
-          loadFullReports();
-        }}
       />
     </div>
   );

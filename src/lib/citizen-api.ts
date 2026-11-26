@@ -72,6 +72,39 @@ export interface MyReportsResponse {
   totalPages: number;
 }
 
+export interface PotentialDuplicateItem {
+  issue: {
+    _id: string;
+    title: string;
+    description: string;
+    category: string;
+    status: string;
+    priority: string;
+    location?: IssueLocation | null;
+    department?: IssueDepartment | null;
+    createdAt: string;
+  };
+  similarityScore: number;
+  confidence: "high" | "medium" | "low";
+  distanceMeters: number | null;
+  distanceKm: number | null;
+  reasons: string[];
+}
+
+export interface DuplicateCheckResponse {
+  success: boolean;
+  count: number;
+  data: {
+    query: {
+      title?: string;
+      category?: string;
+      location?: { latitude: number; longitude: number } | null;
+      searchRadiusMeters?: number | null;
+    };
+    potentialDuplicates: PotentialDuplicateItem[];
+  };
+}
+
 /**
  * Maps raw backend status values to user-facing labels and HeroUI color tokens.
  */
@@ -349,3 +382,47 @@ export async function submitIssueReport(
 
   return json.data.issue;
 }
+
+/**
+ * Checks for potential duplicate issues nearby based on title, category, and coordinates.
+ * Endpoint: GET /api/issues/check-duplicates
+ */
+export async function checkDuplicateIssues(
+  token: string,
+  params: {
+    title: string;
+    category?: string;
+    latitude?: number | string;
+    longitude?: number | string;
+    radius?: number;
+    department?: string;
+  }
+): Promise<PotentialDuplicateItem[]> {
+  if (!params.title || params.title.trim().length < 3) {
+    return [];
+  }
+
+  const queryParams = new URLSearchParams();
+  queryParams.set("title", params.title.trim());
+  if (params.category?.trim()) queryParams.set("category", params.category.trim());
+  if (params.latitude !== undefined && params.latitude !== "" && !isNaN(Number(params.latitude))) {
+    queryParams.set("latitude", String(params.latitude));
+  }
+  if (params.longitude !== undefined && params.longitude !== "" && !isNaN(Number(params.longitude))) {
+    queryParams.set("longitude", String(params.longitude));
+  }
+  if (params.radius) queryParams.set("radius", String(params.radius));
+  if (params.department) queryParams.set("department", params.department);
+
+  try {
+    const res = await authorizedFetch<DuplicateCheckResponse>(
+      `/issues/check-duplicates?${queryParams.toString()}`,
+      token
+    );
+    return res.data?.potentialDuplicates || [];
+  } catch (error) {
+    console.warn("CivicPulse duplicate check non-blocking error:", error);
+    return [];
+  }
+}
+

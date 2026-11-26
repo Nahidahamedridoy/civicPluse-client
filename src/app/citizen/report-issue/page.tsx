@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Construction,
   Droplets,
+  ExternalLink,
+  Eye,
   FileSpreadsheet,
   Footprints,
   LayoutDashboard,
@@ -27,12 +29,15 @@ import {
   Upload,
   X,
   Sparkles,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import { getDashboardPath } from "@/lib/auth";
 import {
   CitizenIssue,
   DepartmentItem,
+  PotentialDuplicateItem,
+  checkDuplicateIssues,
   fetchDepartments,
   submitIssueReport,
   getStatusMeta,
@@ -132,6 +137,11 @@ export default function ReportIssuePage() {
   const [submittedIssue, setSubmittedIssue] = useState<CitizenIssue | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
+  // Duplicate detection & prevention state
+  const [potentialDuplicates, setPotentialDuplicates] = useState<PotentialDuplicateItem[]>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [dismissDuplicatesBanner, setDismissDuplicatesBanner] = useState(false);
+
   // Route protection
   useEffect(() => {
     if (!isMounted) return;
@@ -159,7 +169,6 @@ export default function ReportIssuePage() {
         if (isSubscribed) {
           setDepartments(list);
           if (list.length > 0 && !departmentId) {
-            // Default to first active department
             setDepartmentId(list[0]._id);
           }
         }
@@ -176,6 +185,48 @@ export default function ReportIssuePage() {
       isSubscribed = false;
     };
   }, [token, isAuthenticated, role, departmentId]);
+
+  // Real-time debounced check for potential duplicate issues in municipal queue
+  useEffect(() => {
+    if (!token || !isAuthenticated || role !== "citizen") return;
+
+    if (title.trim().length < 4) {
+      const resetTimer = setTimeout(() => {
+        setPotentialDuplicates([]);
+      }, 0);
+      return () => clearTimeout(resetTimer);
+    }
+
+    const currentToken = token;
+    let isSubscribed = true;
+
+    const timer = setTimeout(async () => {
+      setIsCheckingDuplicates(true);
+      try {
+        const dupes = await checkDuplicateIssues(currentToken, {
+          title: title.trim(),
+          category: category || undefined,
+          latitude: latitude.trim() ? latitude.trim() : undefined,
+          longitude: longitude.trim() ? longitude.trim() : undefined,
+          department: departmentId || undefined,
+        });
+
+        if (isSubscribed) {
+          setPotentialDuplicates(dupes);
+          setDismissDuplicatesBanner(false);
+        }
+      } catch (err) {
+        console.warn("CivicPulse duplicate check error:", err);
+      } finally {
+        if (isSubscribed) setIsCheckingDuplicates(false);
+      }
+    }, 600);
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(timer);
+    };
+  }, [token, isAuthenticated, role, title, category, latitude, longitude, departmentId]);
 
   // Intelligent department matching when citizen selects a category
   const handleCategorySelect = (selectedCatId: CategoryType) => {
@@ -403,13 +454,17 @@ export default function ReportIssuePage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Form submission handler
+  // Form submission handler with duplicate prevention
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmissionError(null);
 
+    // Prevent duplicate submission triggers
+    if (isSubmitting || submittedIssue) {
+      return;
+    }
+
     if (!validateForm()) {
-      // Focus first error field visually
       return;
     }
 
@@ -479,6 +534,8 @@ export default function ReportIssuePage() {
     setLocationSuccess(null);
     setLocationError(null);
     setFieldErrors({});
+    setPotentialDuplicates([]);
+    setDismissDuplicatesBanner(false);
     if (departments.length > 0) {
       setDepartmentId(departments[0]._id);
     }
@@ -565,7 +622,7 @@ export default function ReportIssuePage() {
             </Link>
 
             <Link
-              href="/citizen/dashboard"
+              href="/citizen/my-reports"
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-muted hover:text-foreground hover:bg-surface-secondary/70 transition-all cursor-pointer"
             >
               <FileSpreadsheet className="h-4 w-4 shrink-0" />
@@ -641,8 +698,8 @@ export default function ReportIssuePage() {
           <div className="flex items-center gap-2.5">
             <ThemeToggle />
             <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-border text-xs text-muted">
-              <Chip color="accent" variant="soft" size="sm">
-                Live Incident Intake
+              <Chip color="success" variant="soft" size="sm">
+                <ShieldCheck className="h-3 w-3 mr-1 inline" /> Verified Intake
               </Chip>
             </div>
           </div>
@@ -651,7 +708,7 @@ export default function ReportIssuePage() {
         {/* Content Body */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-5xl w-full mx-auto space-y-6">
           {/* =========================================================================
-              3. SUCCESS SCREEN (Displayed once issue is created)
+              3. SUCCESS SCREEN (Displayed once issue is confirmed created)
               ========================================================================= */}
           {submittedIssue ? (
             <Card className="border border-success/30 bg-surface shadow-xl rounded-2xl p-6 sm:p-10 space-y-8 animate-in fade-in zoom-in-95">
@@ -667,7 +724,7 @@ export default function ReportIssuePage() {
                     Issue Registered in CivicPulse
                   </h1>
                   <p className="text-xs sm:text-sm text-muted max-w-lg mx-auto">
-                    Your report has been received and routed to the municipal triage queue. You can track progress updates directly on your dashboard.
+                    Your report has been received and routed to the municipal dispatch queue. You can monitor investigation progress, updates, and resolution proof in real time.
                   </p>
                 </div>
               </div>
@@ -775,20 +832,38 @@ export default function ReportIssuePage() {
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+              {/* Requirement 7: Action Buttons linking to My Reports and Issue Details */}
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-4 border-t border-border/60">
                 <Button
-                  onPress={() => router.push("/citizen/dashboard")}
+                  onPress={() => router.push(`/citizen/my-reports/${submittedIssue._id}`)}
                   className="w-full sm:w-auto font-semibold cursor-pointer shadow-xs bg-accent text-accent-foreground"
                 >
-                  <LayoutDashboard className="h-4 w-4 mr-2" />
-                  View in Citizen Dashboard
+                  <Eye className="h-4 w-4 mr-2" />
+                  View Issue Details
                 </Button>
 
                 <Button
                   variant="outline"
-                  onPress={handleResetForm}
+                  onPress={() => router.push("/citizen/my-reports")}
                   className="w-full sm:w-auto font-semibold cursor-pointer"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-2 text-accent" />
+                  View in My Reports
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onPress={() => router.push("/citizen/dashboard")}
+                  className="w-full sm:w-auto font-semibold cursor-pointer"
+                >
+                  <LayoutDashboard className="h-4 w-4 mr-2" />
+                  Citizen Dashboard
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onPress={handleResetForm}
+                  className="w-full sm:w-auto font-semibold cursor-pointer text-muted hover:text-foreground"
                 >
                   <RotateCcw className="h-4 w-4 mr-2" />
                   Report Another Incident
@@ -839,6 +914,71 @@ export default function ReportIssuePage() {
                     <X className="h-4 w-4" />
                   </Button>
                 </Alert>
+              )}
+
+              {/* Duplicate Detection Warning Banner */}
+              {potentialDuplicates.length > 0 && !dismissDuplicatesBanner && (
+                <div className="rounded-2xl border border-warning/40 bg-warning/5 p-4 sm:p-5 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-warning font-semibold text-xs sm:text-sm">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>Nearby Similar Reports Detected ({potentialDuplicates.length})</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      isIconOnly
+                      size="sm"
+                      onPress={() => setDismissDuplicatesBanner(true)}
+                      aria-label="Dismiss duplicates notice"
+                      className="cursor-pointer text-muted hover:text-foreground shrink-0"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+
+                  <p className="text-xs text-muted">
+                    Our municipal triage engine found similar reports already registered nearby. Check if your issue has already been logged to avoid redundant submissions:
+                  </p>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {potentialDuplicates.slice(0, 3).map((dupe) => (
+                      <div
+                        key={dupe.issue._id}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl border border-border bg-surface text-xs"
+                      >
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-foreground truncate">
+                              {dupe.issue.title}
+                            </span>
+                            <Chip size="sm" variant="soft" color={getStatusMeta(dupe.issue.status).color}>
+                              {getStatusMeta(dupe.issue.status).label}
+                            </Chip>
+                          </div>
+                          <div className="text-[11px] text-muted flex items-center gap-3 flex-wrap">
+                            <span>Ref: #{dupe.issue._id.slice(-6).toUpperCase()}</span>
+                            {dupe.distanceMeters != null && (
+                              <span>~{dupe.distanceMeters}m away</span>
+                            )}
+                            <span className="text-accent font-medium">{dupe.similarityScore}% match</span>
+                          </div>
+                        </div>
+
+                        <Link
+                          href={`/citizen/my-reports/${dupe.issue._id}`}
+                          target="_blank"
+                          className="text-accent text-[11px] font-semibold hover:underline inline-flex items-center gap-1 shrink-0 self-start sm:self-auto"
+                        >
+                          Inspect Report <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-muted italic">
+                    If this is a separate incident or fresh damage, you may continue and submit.
+                  </p>
+                </div>
               )}
 
               {/* =====================================================================
@@ -939,8 +1079,15 @@ export default function ReportIssuePage() {
                 {/* Title */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label htmlFor="issue-title" className="text-xs font-semibold text-foreground">
-                      Issue Title <span className="text-danger">*</span>
+                    <label htmlFor="issue-title" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <span>Issue Title</span>
+                      <span className="text-danger">*</span>
+                      {isCheckingDuplicates && (
+                        <span className="text-[10px] text-muted flex items-center gap-1 ml-2">
+                          <Activity className="h-3 w-3 animate-spin text-accent" />
+                          Checking duplicates...
+                        </span>
+                      )}
                     </label>
                     <span
                       className={`text-[10px] font-mono ${
@@ -1405,7 +1552,7 @@ export default function ReportIssuePage() {
               </Card>
 
               {/* =====================================================================
-                  STEP 5: SUBMIT ACTION BAR
+                  STEP 5: SUBMIT ACTION BAR (Duplicate Submission Prevented)
                   ===================================================================== */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
                 <Link
@@ -1418,7 +1565,7 @@ export default function ReportIssuePage() {
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <Button
                     type="submit"
-                    isDisabled={isSubmitting}
+                    isDisabled={isSubmitting || Boolean(submittedIssue)}
                     className="w-full sm:w-auto font-semibold px-6 py-2.5 shadow-sm cursor-pointer bg-accent text-accent-foreground"
                   >
                     {isSubmitting ? (
@@ -1442,3 +1589,4 @@ export default function ReportIssuePage() {
     </div>
   );
 }
+
