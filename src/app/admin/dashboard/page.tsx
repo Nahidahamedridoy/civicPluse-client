@@ -31,8 +31,8 @@ import { useAuth } from "@/context/auth-context";
 import { getDashboardPath } from "@/lib/auth";
 import {
   AdminDashboardData,
+  AdminIssue,
   AnalyticsData,
-  CitizenIssue,
   DepartmentPerformanceItem,
   fetchAdminAnalytics,
   fetchAdminDashboard,
@@ -56,14 +56,14 @@ export default function AdminDashboardPage() {
   const [dashboardData, setDashboardData] = useState<AdminDashboardData | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [departmentPerformance, setDepartmentPerformance] = useState<DepartmentPerformanceItem[]>([]);
-  const [recentIssues, setRecentIssues] = useState<CitizenIssue[]>([]);
+  const [recentIssues, setRecentIssues] = useState<AdminIssue[]>([]);
 
   // Loading & error states
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Modal state
-  const [selectedIssue, setSelectedIssue] = useState<CitizenIssue | null>(null);
+  const [selectedIssue, setSelectedIssue] = useState<AdminIssue | null>(null);
 
   // Route protection: Admins only
   useEffect(() => {
@@ -306,13 +306,15 @@ export default function AdminDashboardPage() {
         <div className="p-4 border-t border-border space-y-3 bg-surface-secondary/20">
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-xl bg-accent/15 text-accent flex items-center justify-center font-bold text-xs shrink-0">
-              {user?.name?.charAt(0).toUpperCase() || "A"}
+              {isMounted ? (user?.name?.charAt(0).toUpperCase() || "A") : "A"}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs font-semibold text-foreground truncate">
-                {user?.name}
+                {isMounted ? (user?.name ?? "") : ""}
               </span>
-              <span className="text-[10px] text-muted truncate">{user?.email}</span>
+              <span className="text-[10px] text-muted truncate">
+                {isMounted ? (user?.email ?? "") : ""}
+              </span>
             </div>
           </div>
 
@@ -423,7 +425,7 @@ export default function AdminDashboardPage() {
                 <span className="text-xs text-muted">Full Municipal Access</span>
               </div>
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-                Welcome back, {user?.name || "Administrator"}!
+                Welcome back, {isMounted ? (user?.name || "Administrator") : "Administrator"}!
               </h2>
               <p className="text-sm text-muted max-w-xl leading-relaxed">
                 Monitor cross-department operations, track real-time resolution metrics, and ensure

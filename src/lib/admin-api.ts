@@ -15,7 +15,7 @@ export interface IssueUserDetail {
   name: string;
   email?: string;
   phone?: string;
-  avatar?: string | null;
+  avatar?: string;
 }
 
 export interface IssueDepartmentDetail {
@@ -235,16 +235,18 @@ export async function fetchAdminAnalytics(token: string): Promise<AnalyticsData>
 
 /**
  * Fetches department-wise performance metrics and rankings from GET /api/analytics/department-performance
+ * Backend response shape: { success, count, data: { departments: DepartmentPerformanceItem[] } }
  */
 export async function fetchAdminDepartmentPerformance(
   token: string
 ): Promise<DepartmentPerformanceItem[]> {
   const res = await authorizedFetch<{
     success: boolean;
-    data: DepartmentPerformanceItem[];
+    count: number;
+    data: { departments: DepartmentPerformanceItem[] };
   }>("/analytics/department-performance", token);
 
-  return res.data || [];
+  return res.data?.departments ?? [];
 }
 
 /**
@@ -479,4 +481,278 @@ export async function fetchIssueProgressReports(
   } catch {
     return [];
   }
+}
+
+// ==========================================
+// Department Management Interfaces & Helpers
+// ==========================================
+
+export interface AdminDepartment {
+  _id: string;
+  name: string;
+  code: string;
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminUserRecord {
+  _id: string;
+  name: string;
+  email: string;
+  role: "citizen" | "maintenance_staff" | "department_manager" | "admin";
+  phone?: string;
+  avatar?: string;
+  isActive: boolean;
+  department?: {
+    _id: string;
+    name: string;
+    code: string;
+  } | null;
+  createdAt: string;
+}
+
+export interface DepartmentWorkloadStaffItem {
+  staff: {
+    _id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    avatar?: string;
+    role: string;
+    isActive: boolean;
+  };
+  assigned: number;
+  inProgress: number;
+  resolved: number;
+  activeWorkload: number;
+}
+
+export interface DepartmentWorkloadResponse {
+  department: {
+    _id: string;
+    name: string;
+    code: string;
+  };
+  staffWorkload: DepartmentWorkloadStaffItem[];
+  totalStaff: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface AdminDepartmentsFilter {
+  search?: string;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminDepartmentsResponse {
+  departments: AdminDepartment[];
+  count: number;
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+/**
+ * Fetches all departments with pagination, search, and active status filtering
+ * Endpoint: GET /api/departments
+ */
+export async function fetchAdminDepartments(
+  token: string,
+  filters?: AdminDepartmentsFilter
+): Promise<AdminDepartmentsResponse> {
+  const query = new URLSearchParams();
+  if (filters?.page) query.set("page", String(filters.page));
+  if (filters?.limit) query.set("limit", String(filters.limit));
+  if (filters?.search?.trim()) query.set("search", filters.search.trim());
+  if (filters?.isActive !== undefined) query.set("isActive", String(filters.isActive));
+
+  const url = `/departments${query.toString() ? `?${query.toString()}` : ""}`;
+  const res = await authorizedFetch<{
+    success: boolean;
+    count: number;
+    total: number;
+    page: number;
+    totalPages: number;
+    data: { departments: AdminDepartment[] };
+  }>(url, token);
+
+  return {
+    departments: res.data?.departments || [],
+    count: res.count || 0,
+    total: res.total || 0,
+    page: res.page || 1,
+    totalPages: res.totalPages || 1,
+  };
+}
+
+/**
+ * Fetches single department details by ID
+ * Endpoint: GET /api/departments/:id
+ */
+export async function fetchDepartmentById(
+  token: string,
+  id: string
+): Promise<AdminDepartment> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    data: { department: AdminDepartment };
+  }>(`/departments/${id}`, token);
+
+  return res.data.department;
+}
+
+/**
+ * Creates a new department
+ * Endpoint: POST /api/departments
+ */
+export async function createDepartmentByAdmin(
+  token: string,
+  payload: { name: string; code: string; description?: string }
+): Promise<{ department: AdminDepartment; message: string }> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: { department: AdminDepartment };
+  }>("/departments", token, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    department: res.data.department,
+    message: res.message || "Department created successfully.",
+  };
+}
+
+/**
+ * Updates an existing department
+ * Endpoint: PATCH /api/departments/:id
+ */
+export async function updateDepartmentByAdmin(
+  token: string,
+  id: string,
+  payload: { name?: string; code?: string; description?: string; isActive?: boolean }
+): Promise<{ department: AdminDepartment; message: string }> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: { department: AdminDepartment };
+  }>(`/departments/${id}`, token, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+  return {
+    department: res.data.department,
+    message: res.message || "Department updated successfully.",
+  };
+}
+
+/**
+ * Soft deletes (deactivates) a department
+ * Endpoint: DELETE /api/departments/:id
+ */
+export async function deleteDepartmentByAdmin(
+  token: string,
+  id: string
+): Promise<{ department: AdminDepartment; message: string }> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: { department: AdminDepartment };
+  }>(`/departments/${id}`, token, {
+    method: "DELETE",
+  });
+
+  return {
+    department: res.data.department,
+    message: res.message || "Department deactivated successfully.",
+  };
+}
+
+/**
+ * Fetches department workload and staff assignment details
+ * Endpoint: GET /api/departments/:id/workload
+ */
+export async function fetchDepartmentWorkload(
+  token: string,
+  deptId: string
+): Promise<DepartmentWorkloadResponse | null> {
+  try {
+    const res = await authorizedFetch<{
+      success: boolean;
+      data: DepartmentWorkloadResponse;
+    }>(`/departments/${deptId}/workload`, token);
+
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetches users with optional filters (e.g., department managers, staff)
+ * Endpoint: GET /api/admin/users
+ */
+export async function fetchAdminUsers(
+  token: string,
+  params?: {
+    role?: string;
+    department?: string;
+    isActive?: boolean;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }
+): Promise<{ users: AdminUserRecord[]; total: number }> {
+  try {
+    const query = new URLSearchParams();
+    if (params?.role) query.set("role", params.role);
+    if (params?.department) query.set("department", params.department);
+    if (params?.isActive !== undefined) query.set("isActive", String(params.isActive));
+    if (params?.search) query.set("search", params.search);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.limit) query.set("limit", String(params.limit));
+
+    const res = await authorizedFetch<{
+      success: boolean;
+      total: number;
+      data: { users: AdminUserRecord[] };
+    }>(`/admin/users?${query.toString()}`, token);
+
+    return {
+      users: res.data?.users || [],
+      total: res.total || 0,
+    };
+  } catch {
+    return { users: [], total: 0 };
+  }
+}
+
+/**
+ * Reassigns or assigns a user's department
+ * Endpoint: PATCH /api/admin/users/:id
+ */
+export async function assignUserDepartment(
+  token: string,
+  userId: string,
+  departmentId: string | null
+): Promise<{ user: AdminUserRecord; message: string }> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: { user: AdminUserRecord };
+  }>(`/admin/users/${userId}`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ department: departmentId }),
+  });
+
+  return {
+    user: res.data.user,
+    message: res.message || "User department assignment updated successfully.",
+  };
 }
