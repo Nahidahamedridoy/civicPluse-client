@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Chip } from "@heroui/react";
-import { Activity, Heart, ShieldCheck } from "lucide-react";
+import { Home, Activity, List, FileText, User, LogIn, LogOut, Heart, ShieldCheck } from "lucide-react";
 
 export function Footer() {
   return (
@@ -30,30 +30,59 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Column 1: Platform Links */}
+          {/* Column 1: Quick Links */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Quick Links
+            </h4>
+            <ul className="space-y-2 text-xs text-muted">
+              <li>
+                <Link href="/" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <Home className="h-3 w-3" /> Home
+                </Link>
+              </li>
+              <li>
+                <Link href="/citizen/dashboard" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <Activity className="h-3 w-3" /> Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/citizen/my-reports" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <List className="h-3 w-3" /> My Reports
+                </Link>
+              </li>
+              <li>
+                <Link href="/citizen/report-issue" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <FileText className="h-3 w-3" /> Report Issue
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Column 2: Platform Links */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
               Platform
             </h4>
             <ul className="space-y-2 text-xs text-muted">
               <li>
-                <Link href="#how-it-works" className="hover:text-foreground transition-colors">
-                  How It Works
+                <Link href="/citizen/report-issue" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <FileText className="h-3 w-3" /> Report an Issue
                 </Link>
               </li>
               <li>
-                <Link href="#features" className="hover:text-foreground transition-colors">
-                  Platform Features
+                <Link href="/citizen/my-reports" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <List className="h-3 w-3" /> My Reports
                 </Link>
               </li>
               <li>
-                <Link href="#stats" className="hover:text-foreground transition-colors">
-                  Simulated Impact
+                <Link href="/login" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <LogIn className="h-3 w-3" /> Login
                 </Link>
               </li>
               <li>
-                <Link href="#report-cta" className="hover:text-foreground transition-colors">
-                  Report Incident
+                <Link href="/register" className="flex items-center gap-1 hover:text-foreground transition-colors">
+                  <User className="h-3 w-3" /> Register
                 </Link>
               </li>
             </ul>
@@ -92,24 +121,12 @@ export function Footer() {
               </li>
             </ul>
           </div>
-
-          {/* Column 3: Transparency & Open Tech */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Architecture
-            </h4>
-            <ul className="space-y-2 text-xs text-muted">
-              <li>Next.js App Router (React 19)</li>
-              <li>Tailwind CSS v4 (Layer Engine)</li>
-              <li>HeroUI v3 Compound Components</li>
-              <li>React Aria Accessibility</li>
-            </ul>
-          </div>
+          
         </div>
 
         {/* Bottom Bar */}
         <div className="pt-8 border-t border-border/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted">
-          <p>© {new Date().getFullYear()} CivicPulse Platform. Demonstration software for modern municipalities.</p>
+          <p>© {new Date().getFullYear()} CivicPulse. All rights reserved.</p>
 
           <div className="flex items-center gap-2">
             <span>Built with</span>
