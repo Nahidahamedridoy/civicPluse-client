@@ -378,9 +378,8 @@ export default function AdminIssuesPage() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-surface flex flex-col justify-between transition-transform duration-200 md:static md:translate-x-0 ${
-          mobileSidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-surface flex flex-col justify-between transition-transform duration-200 md:static md:translate-x-0 ${mobileSidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+          }`}
       >
         <div className="space-y-6 p-5">
           {/* Brand Header */}
@@ -583,11 +582,10 @@ export default function AdminIssuesPage() {
                   type="button"
                   onClick={() => setViewMode("table")}
                   aria-label="Table view"
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    viewMode === "table"
-                      ? "bg-accent text-accent-foreground shadow-xs"
-                      : "text-muted hover:text-foreground"
-                  }`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === "table"
+                    ? "bg-accent text-accent-foreground shadow-xs"
+                    : "text-muted hover:text-foreground"
+                    }`}
                 >
                   <LayoutList className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Table</span>
@@ -596,11 +594,10 @@ export default function AdminIssuesPage() {
                   type="button"
                   onClick={() => setViewMode("grid")}
                   aria-label="Grid view"
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                    viewMode === "grid"
-                      ? "bg-accent text-accent-foreground shadow-xs"
-                      : "text-muted hover:text-foreground"
-                  }`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${viewMode === "grid"
+                    ? "bg-accent text-accent-foreground shadow-xs"
+                    : "text-muted hover:text-foreground"
+                    }`}
                 >
                   <LayoutGrid className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Cards</span>
@@ -780,9 +777,8 @@ export default function AdminIssuesPage() {
               <span className="text-muted">
                 {isLoading
                   ? "Loading citywide incident records..."
-                  : `Showing ${startRange}–${endRange} of ${totalIssues} municipal ${
-                      totalIssues === 1 ? "issue" : "issues"
-                    }`}
+                  : `Showing ${startRange}–${endRange} of ${totalIssues} municipal ${totalIssues === 1 ? "issue" : "issues"
+                  }`}
               </span>
 
               {hasActiveFilters && (
@@ -996,7 +992,7 @@ export default function AdminIssuesPage() {
                 const locationText =
                   item.location?.address ||
                   (item.location?.latitude != null &&
-                  item.location?.longitude != null
+                    item.location?.longitude != null
                     ? `${item.location.latitude.toFixed(4)}, ${item.location.longitude.toFixed(4)}`
                     : "No location address provided");
 

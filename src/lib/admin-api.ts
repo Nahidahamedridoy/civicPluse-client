@@ -222,13 +222,33 @@ export async function fetchAdminDashboard(token: string): Promise<AdminDashboard
 }
 
 /**
+ * Analytics filtering parameters
+ */
+export interface AnalyticsFilters {
+  startDate?: string;
+  endDate?: string;
+  department?: string;
+}
+
+/**
  * Fetches system-wide analytics, monthly trends, and category distribution from GET /api/analytics
  */
-export async function fetchAdminAnalytics(token: string): Promise<AnalyticsData> {
+export async function fetchAdminAnalytics(
+  token: string,
+  filters?: AnalyticsFilters
+): Promise<AnalyticsData> {
+  const query = new URLSearchParams();
+  if (filters?.startDate) query.set("startDate", filters.startDate);
+  if (filters?.endDate) query.set("endDate", filters.endDate);
+  if (filters?.department && filters.department !== "all") {
+    query.set("department", filters.department);
+  }
+
+  const url = `/analytics${query.toString() ? `?${query.toString()}` : ""}`;
   const res = await authorizedFetch<{
     success: boolean;
     data: AnalyticsData;
-  }>("/analytics", token);
+  }>(url, token);
 
   return res.data;
 }
@@ -238,13 +258,22 @@ export async function fetchAdminAnalytics(token: string): Promise<AnalyticsData>
  * Backend response shape: { success, count, data: { departments: DepartmentPerformanceItem[] } }
  */
 export async function fetchAdminDepartmentPerformance(
-  token: string
+  token: string,
+  filters?: AnalyticsFilters
 ): Promise<DepartmentPerformanceItem[]> {
+  const query = new URLSearchParams();
+  if (filters?.startDate) query.set("startDate", filters.startDate);
+  if (filters?.endDate) query.set("endDate", filters.endDate);
+  if (filters?.department && filters.department !== "all") {
+    query.set("department", filters.department);
+  }
+
+  const url = `/analytics/department-performance${query.toString() ? `?${query.toString()}` : ""}`;
   const res = await authorizedFetch<{
     success: boolean;
     count: number;
     data: { departments: DepartmentPerformanceItem[] };
-  }>("/analytics/department-performance", token);
+  }>(url, token);
 
   return res.data?.departments ?? [];
 }
@@ -708,29 +737,98 @@ export async function fetchAdminUsers(
     page?: number;
     limit?: number;
   }
-): Promise<{ users: AdminUserRecord[]; total: number }> {
+): Promise<{ users: AdminUserRecord[]; total: number; page: number; totalPages: number }> {
   try {
     const query = new URLSearchParams();
-    if (params?.role) query.set("role", params.role);
-    if (params?.department) query.set("department", params.department);
+    if (params?.role && params.role !== "all") query.set("role", params.role);
+    if (params?.department && params.department !== "all") query.set("department", params.department);
     if (params?.isActive !== undefined) query.set("isActive", String(params.isActive));
-    if (params?.search) query.set("search", params.search);
+    if (params?.search?.trim()) query.set("search", params.search.trim());
     if (params?.page) query.set("page", String(params.page));
     if (params?.limit) query.set("limit", String(params.limit));
 
     const res = await authorizedFetch<{
       success: boolean;
       total: number;
+      page: number;
+      totalPages: number;
       data: { users: AdminUserRecord[] };
     }>(`/admin/users?${query.toString()}`, token);
 
     return {
       users: res.data?.users || [],
       total: res.total || 0,
+      page: res.page || 1,
+      totalPages: res.totalPages || 1,
     };
   } catch {
-    return { users: [], total: 0 };
+    return { users: [], total: 0, page: 1, totalPages: 1 };
   }
+}
+
+/**
+ * Fetches single user details by ID
+ * Endpoint: GET /api/admin/users/:id
+ */
+export async function fetchAdminUserById(
+  token: string,
+  id: string
+): Promise<AdminUserRecord> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    data: { user: AdminUserRecord };
+  }>(`/admin/users/${id}`, token);
+
+  return res.data.user;
+}
+
+/**
+ * Updates user role (and department if applicable)
+ * Endpoint: PATCH /api/admin/users/:id/role
+ */
+export async function updateUserRoleByAdmin(
+  token: string,
+  userId: string,
+  role: string,
+  department?: string | null
+): Promise<{ user: AdminUserRecord; message: string }> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: { user: AdminUserRecord };
+  }>(`/admin/users/${userId}/role`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ role, department: department || undefined }),
+  });
+
+  return {
+    user: res.data.user,
+    message: res.message || `User role updated to ${role}.`,
+  };
+}
+
+/**
+ * Activates or deactivates user accounts
+ * Endpoint: PATCH /api/admin/users/:id/status
+ */
+export async function updateUserStatusByAdmin(
+  token: string,
+  userId: string,
+  isActive: boolean
+): Promise<{ user: AdminUserRecord; message: string }> {
+  const res = await authorizedFetch<{
+    success: boolean;
+    message: string;
+    data: { user: AdminUserRecord };
+  }>(`/admin/users/${userId}/status`, token, {
+    method: "PATCH",
+    body: JSON.stringify({ isActive }),
+  });
+
+  return {
+    user: res.data.user,
+    message: res.message || `User account ${isActive ? "activated" : "deactivated"} successfully.`,
+  };
 }
 
 /**

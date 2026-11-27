@@ -33,6 +33,29 @@ export function DepartmentModal({
   token,
   onSuccess,
 }: DepartmentModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <DepartmentModalContent
+      department={department}
+      onClose={onClose}
+      token={token}
+      onSuccess={onSuccess}
+    />
+  );
+}
+
+function DepartmentModalContent({
+  department,
+  onClose,
+  token,
+  onSuccess,
+}: {
+  department?: AdminDepartment | null;
+  onClose: () => void;
+  token: string;
+  onSuccess: (savedDept: AdminDepartment, message: string) => void;
+}) {
   const isEditing = Boolean(department);
 
   const [name, setName] = useState(department?.name || "");
@@ -44,8 +67,6 @@ export function DepartmentModal({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
